@@ -4,7 +4,10 @@ import re
 import random
 import csv
 
-url_posts = 'https://graph.facebook.com/v2.10/nytimes/posts?since=20 september 2017&until=27 september 2017&limit=100&access_token=%s|%s' % (app_id, app_secret)
+app_id = '176975276185964'
+app_secret = '39c0a736cfd732bc153e87bb0d1b92e1'
+
+url_posts = 'https://graph.facebook.com/v2.10/nytimes/posts?limit=100&since=2017-09-20&until=2017-09-27&access_token=%s|%s' % (app_id, app_secret)
 
 req = requests.get(url_posts)
 data = req.json()
@@ -15,14 +18,29 @@ ids = [dic['id'] for dic in data['data']]
 post_ids = []
 comment_ids = []
 comments = []
+n_comments = []
 for i in ids:
-    url = 'https://graph.facebook.com/v2.10/%s/comments?filter=stream&limit=3000&access_token=%s|%s' % \
+    url = 'https://graph.facebook.com/v2.10/%s/comments?filter=stream&limit=6000&access_token=%s|%s' % \
         (i, app_id, app_secret)
     req = requests.get(url)
-    data_com = req.json()['data']
+    req_dict = req.json()
+    data_com = req_dict['data']
     post_ids += [i for dic in data_com]
     comment_ids += [dic['id'] for dic in data_com]
     comments += [dic['message'] for dic in data_com]
+    n = len(data_com)
+    while 'paging' in req_dict:
+        if 'next' in req_dict['paging']:
+            req_dict = requests.get(req_dict['paging']['next']).json()
+            data_com = req_dict['data']
+            post_ids += [i for dic in data_com]
+            comment_ids += [dic['id'] for dic in data_com]
+            comments += [dic['message'] for dic in data_com]
+            n += len(data_com)
+        else:
+            break
+    n_comments.append(n)
+
 
 ## experimenting emoji removal
 myre = re.compile(u'['
@@ -44,6 +62,9 @@ cmnt_lst = list(zip(post_ids, comment_ids, comments_emoless))
 for i in range(len(cmnt_lst)-1, -1, -1):
     if cmnt_lst[i][2].strip() == '':
         cmnt_lst.pop(i)
+
+## write sanitized comments count to a txt file
+
 
 cmnt_kept = random.sample(cmnt_lst, 100)
 
